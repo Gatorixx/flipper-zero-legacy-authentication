@@ -23,6 +23,9 @@
 
 #include "scenes/scenes.h"
 
+#include <nfc/nfc_listener.h>
+#include <mfdesfire_nfc_device.h>
+
 #define TAG                 "MfDesApp"
 #define NFC_CARDS_PATH      "/ext/nfc"
 #define INITIAL_VECTOR_SIZE 8
@@ -40,6 +43,7 @@ typedef enum {
     MfDesAppViewSubmenu,
     MfDesAppViewByteInput,
     MfDesAppViewPopupAuth,
+    MfDesAppViewWidget,
 } MfDesAppView;
 
 typedef enum{
@@ -72,7 +76,7 @@ typedef struct {
     FileBrowser* file_browser;
     Submenu* submenu;
     ByteInput* byte_input;
-    Popup* popup;
+    // Popup* popup;
     Widget* widget;
 
     FuriString* selected_card_path;
@@ -81,6 +85,11 @@ typedef struct {
     uint8_t key[KEY_SIZE];
 
     // MfDesAppView current_view; // Track current view manually
+
+    Nfc* nfc;
+    NfcListener* listener;
+
+    MfDesDevice* device;
 } MfDesApp;
 
 bool mfdesfire_auth_save_settings(MfDesApp* app, uint32_t index);

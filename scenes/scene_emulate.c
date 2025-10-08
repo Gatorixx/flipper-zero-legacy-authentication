@@ -7,17 +7,14 @@ static void mfdes_popup_callback(void* context) {
 
 void desfire_app_scene_emulate_on_enter(void* context) {
     MfDesApp* instance = context;
-    Popup* popup = instance->popup;
+    Popup* widget = instance->widget;
 
-    popup_set_header(popup, "Emulating...", 64, 20, AlignCenter, AlignCenter);
-    popup_set_text(popup, "Please wait", 64, 40, AlignCenter, AlignCenter);
-    popup_set_icon(popup, 0, 0, NULL); // No icon
-    popup_set_timeout(popup, 3000); // 3 seconds timeout
-    popup_set_context(popup, instance);
-    popup_set_callback(popup, mfdes_popup_callback);
-    popup_enable_timeout(popup);
+    // widget_add_icon_element(widget, 0, 3, &I_NFC_dolphin_emulation_51x64); TODO
+    widget_add_string_element(widget, 90, 26, AlignCenter, AlignCenter, FontPrimary, "Emulating");
 
-    view_dispatcher_switch_to_view(instance->view_dispatcher, MfDesAppViewPopupAuth);
+    view_dispatcher_switch_to_view(instance->view_dispatcher, MfDesAppViewWidget);
+
+    instance->device = mfdes_device_alloc();
 }
 
 bool desfire_app_scene_emulate_on_event(void* context, SceneManagerEvent event){
@@ -32,6 +29,9 @@ bool desfire_app_scene_emulate_on_event(void* context, SceneManagerEvent event){
         if(event_index == MfDesAppCustomExit){
             consumed = scene_manager_search_and_switch_to_previous_scene(scene_manager, MfDesAppViewSubmenu);
         }
+    }else if(event.type == SceneManagerEventTypeBack){
+
+
     }
 
     return consumed;
