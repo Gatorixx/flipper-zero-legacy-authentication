@@ -1,3 +1,4 @@
+#pragma once
 #include <furi.h>
 #include <furi_hal.h>
 
@@ -14,7 +15,6 @@
 #include <dialogs/dialogs.h>
 #include <furi/core/string.h>
 
-
 #include <storage/storage.h>
 
 #include <flipper_format/flipper_format.h> //Potreba?
@@ -26,7 +26,7 @@
 #include <nfc/nfc_listener.h>
 #include <mfdesfire_nfc_device.h>
 
-#define TAG                 "MfDesApp"
+// #define TAG                 "MfDesApp" //TODO nejak tady pridat tag
 #define NFC_CARDS_PATH      "/ext/nfc"
 #define INITIAL_VECTOR_SIZE 8
 #define KEY_SIZE            24
@@ -36,17 +36,16 @@
 #define SAVE_FILE_HEADER  "Flipper DESFire Auth Settings"
 #define SAVE_FILE_VERSION 1
 
-
 // View index
 typedef enum {
     MfDesAppViewBrowser,
     MfDesAppViewSubmenu,
     MfDesAppViewByteInput,
-    MfDesAppViewPopupAuth,
+    // MfDesAppViewPopupAuth,
     MfDesAppViewWidget,
 } MfDesAppView;
 
-typedef enum{
+typedef enum {
     MfDesAppByteInputIV,
     MfDesAppByteInputKey,
 } MfDesAppByteInputType;
@@ -57,9 +56,6 @@ typedef enum {
     MfDesSaveKey,
 } MfDesSaveIndex;
 
-typedef enum{
-    MfDesAppCustomExit,
-} MfDesAppCustomEvent;
 
 /**
  * @brief Struktura pro uchování stavu aplikace.
@@ -83,6 +79,9 @@ typedef struct {
 
     uint8_t initial_vector[INITIAL_VECTOR_SIZE];
     uint8_t key[KEY_SIZE];
+    // FuriString* uid; // UID karty 7
+    // FuriString* sak; // 1
+    // FuriString* atqa; // 2
 
     // MfDesAppView current_view; // Track current view manually
 
@@ -94,3 +93,5 @@ typedef struct {
 
 bool mfdesfire_auth_save_settings(MfDesApp* app, uint32_t index);
 bool mfdesfire_auth_load_settings(MfDesApp* instance);
+
+// bool mfdes_load_card_info(MfDesApp* instance);

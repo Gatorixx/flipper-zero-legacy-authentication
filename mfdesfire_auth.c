@@ -1,5 +1,18 @@
 #include "mfdesfire_auth_i.h"
 
+
+static char* mfdes_get_file_name(FuriString* file_string){ //TODO chtelo by to odstranit pryc protoze to vyuziva i mfdesfire_auth.c
+    char* filename = strrchr(furi_string_get_cstr(file_string), '/');
+    // if(filename) {
+    //     filename++; // Skip the '/' character
+    // } else {
+    //     filename = furi_string_get_cstr(file_string);
+    // }
+    // return filename;
+
+    return filename ? filename + 1 : (char*)furi_string_get_cstr(file_string);
+}
+
 bool mfdesfire_auth_load_settings(MfDesApp* instance) {
     bool result = false;
     Storage* storage = furi_record_open(RECORD_STORAGE);
@@ -16,16 +29,18 @@ bool mfdesfire_auth_load_settings(MfDesApp* instance) {
         if(version != SAVE_FILE_VERSION) break;
 
         // Extract filename from full path
-        const char* filename = strrchr(furi_string_get_cstr(instance->selected_card_path), '/');
-        if(filename) {
-            filename++; // Skip the '/' character
-        } else {
-            filename = furi_string_get_cstr(instance->selected_card_path);
-        }
+        // const char* filename = strrchr(furi_string_get_cstr(instance->selected_card_path), '/');
+        // if(filename) {
+        //     filename++; // Skip the '/' character
+        // } else {
+        //     filename = furi_string_get_cstr(instance->selected_card_path);
+        // }
+
+        const char* filename = mfdes_get_file_name(instance->selected_card_path);
 
         FuriString* key_name = furi_string_alloc();
 
-        furi_string_printf(key_name, "Card_Path_%s", filename);
+        furi_string_printf(key_name, "Card_Path_%s", filename); //Sestavi nazev klice
         if(flipper_format_read_string(file, furi_string_get_cstr(key_name), temp_str)) {
             if(furi_string_equal(temp_str, instance->selected_card_path)) {
                 furi_string_printf(key_name, "Initial_Vector_%s", filename);
@@ -47,7 +62,7 @@ bool mfdesfire_auth_load_settings(MfDesApp* instance) {
     return result;
 }
 
-bool mfdesfire_auth_save_settings(MfDesApp* app, uint32_t index) {
+bool mfdesfire_auth_save_settings(MfDesApp* instance, uint32_t index) {
     bool result = false;
     // UNUSED(index);
     // MfDesfireAuthApp* app = context;
@@ -55,12 +70,13 @@ bool mfdesfire_auth_save_settings(MfDesApp* app, uint32_t index) {
     FlipperFormat* file = flipper_format_file_alloc(storage);
 
     // Extract filename from full path
-    const char* filename = strrchr(furi_string_get_cstr(app->selected_card_path), '/');
-    if(filename) {
-        filename++; // Skip the '/' character
-    } else {
-        filename = furi_string_get_cstr(app->selected_card_path);
-    }
+    // const char* filename = strrchr(furi_string_get_cstr(app->selected_card_path), '/');
+    // if(filename) {
+    //     filename++; // Skip the '/' character
+    // } else {
+    //     filename = furi_string_get_cstr(app->selected_card_path);
+    // }
+    char* filename = mfdes_get_file_name(instance->selected_card_path);
 
     do {
         // Open existing or create a new one
@@ -76,20 +92,20 @@ bool mfdesfire_auth_save_settings(MfDesApp* app, uint32_t index) {
         // Set key for card path
         furi_string_printf(key_name, "Card_Path_%s", filename);
         if(!flipper_format_insert_or_update_string(
-               file, furi_string_get_cstr(key_name), app->selected_card_path))
+               file, furi_string_get_cstr(key_name), instance->selected_card_path))
             break;
 
         if(index == MfDesAppByteInputIV) {
             furi_string_printf(key_name, "Initial_Vector_%s", filename);
             if(!flipper_format_insert_or_update_hex(
-                   file, furi_string_get_cstr(key_name), app->initial_vector, INITIAL_VECTOR_SIZE))
+                   file, furi_string_get_cstr(key_name), instance->initial_vector, INITIAL_VECTOR_SIZE))
                 break;
         }
 
         if(index == MfDesAppByteInputKey) {
             furi_string_printf(key_name, "Key_%s", filename);
             if(!flipper_format_insert_or_update_hex(
-                   file, furi_string_get_cstr(key_name), app->key, KEY_SIZE))
+                   file, furi_string_get_cstr(key_name), instance->key, KEY_SIZE))
                 break;
         }
 
@@ -130,6 +146,12 @@ static bool mfdes_back_event_callback(void* context){
 MfDesApp* mfdesfire_auth_app_alloc() {
     MfDesApp* instance = malloc(sizeof(MfDesApp));
 
+    // instance->uid = furi_string_alloc();
+    // instance->sak = furi_string_alloc();
+    // instance->atqa = furi_string_alloc();
+
+    instance->nfc = nfc_alloc();
+
     // Open GUI record
     instance->gui = furi_record_open(RECORD_GUI);
 
@@ -156,9 +178,12 @@ MfDesApp* mfdesfire_auth_app_alloc() {
     
     instance->byte_input = byte_input_alloc();
     view_dispatcher_add_view(instance->view_dispatcher, MfDesAppViewByteInput, byte_input_get_view(instance->byte_input));
+
+    instance->widget = widget_alloc();
+    view_dispatcher_add_view(instance->view_dispatcher, MfDesAppViewWidget, widget_get_view(instance->widget));
     
-    instance->popup = popup_alloc();
-    view_dispatcher_add_view(instance->view_dispatcher, MfDesAppViewPopupAuth, popup_get_view(instance->popup));
+    // instance->popup = popup_alloc();
+    // view_dispatcher_add_view(instance->view_dispatcher, MfDesAppViewPopupAuth, popup_get_view(instance->popup));
 
     instance->scene_manager = scene_manager_alloc(&desfire_app_scene_handlers, instance);
 
@@ -171,12 +196,15 @@ MfDesApp* mfdesfire_auth_app_alloc() {
 void mfdesfire_auth_app_free(MfDesApp* instance) {
     furi_assert(instance);
 
+    nfc_free(instance->nfc);
+
     // Odstranění views
     view_dispatcher_remove_view(instance->view_dispatcher, MfDesAppViewBrowser);
     view_dispatcher_remove_view(instance->view_dispatcher, MfDesAppViewSubmenu);
     view_dispatcher_remove_view(instance->view_dispatcher, MfDesAppViewByteInput);
     // view_dispatcher_remove_view(instance->view_dispatcher, MfDesAppViewByteInputKey);
-    view_dispatcher_remove_view(instance->view_dispatcher, MfDesAppViewPopupAuth);
+    // view_dispatcher_remove_view(instance->view_dispatcher, MfDesAppViewPopupAuth);
+    view_dispatcher_remove_view(instance->view_dispatcher, MfDesAppViewWidget);
 
     // Uvolnění zdrojů
     view_dispatcher_free(instance->view_dispatcher);
@@ -184,11 +212,12 @@ void mfdesfire_auth_app_free(MfDesApp* instance) {
     file_browser_free(instance->file_browser);
     submenu_free(instance->submenu);
     byte_input_free(instance->byte_input);
-    popup_free(instance->popup);
+    // popup_free(instance->popup);
     furi_string_free(instance->selected_card_path);
     furi_record_close(RECORD_GUI);
     free(instance);
 }
+
 
 int32_t mfdesfire_auth_main(void* p) {
     UNUSED(p);

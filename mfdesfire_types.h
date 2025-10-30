@@ -1,5 +1,7 @@
 
-typedef enum{
+#pragma once
+
+typedef enum {
     ROT_LEFT,
     ROT_RIGHT,
 } MfDesRotation;
@@ -12,12 +14,5 @@ typedef enum {
     MfDesAuthenticationFinish,
     MfDesAuthenticationError,
 } MfDesDeviceEventType;
-
-// typedef enum{
-//     MfDesEventAuthenticating,
-//     MfDesEventSuccess,
-//     MfDesEventError,
-//     MfDes
-// }
 
 typedef void (*MfDesDeviceEventCallback)(MfDesDeviceEventType type, void* context);
