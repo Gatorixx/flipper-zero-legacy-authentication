@@ -52,4 +52,4 @@ bool mfdes_load_card_info(MfDesDevice* device, FuriString* path);
 
 void mfdes_load_key_and_iv(MfDesDevice* device, const uint8_t* key, const uint8_t* iv);
 
-void mfdes_init_nfc_device(MfDesDevice* device);
+void mfdes_init_nfc_device(MfDesDevice* device, FuriString* path);

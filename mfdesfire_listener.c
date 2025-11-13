@@ -13,14 +13,19 @@ typedef struct {
 
 NfcCommand mfdes_listener_select_application_cmd(MfDesDevice* device, const uint8_t* data) {
     UNUSED(data);
+    bit_buffer_reset(device->tx_buf);
+    bit_buffer_append_byte(device->tx_buf, data[0]);
     bit_buffer_append_byte(device->tx_buf, MFDES_CLASS_RESPONSE);
     bit_buffer_append_byte(device->tx_buf, MFDES_SUCCESS);
+    iso14443_crc_append(Iso14443CrcTypeA, device->tx_buf);
     device_set_specific_context(device, MfDesListenerStateSelected);
+    FURI_LOG_D(TAG, "Listener: select application");
     return NfcCommandContinue;
 }
 
 NfcCommand mfdes_listener_legacy_authentication_cmd(MfDesDevice* device, const uint8_t* data) {
     UNUSED(data);
+    bit_buffer_reset(device->tx_buf);
     uint8_t rndB[8];
     uint8_t encrypted_rndB[8];
     uint8_t init_vector[8];
@@ -62,12 +67,14 @@ NfcCommand mfdes_listener_legacy_authentication_cmd(MfDesDevice* device, const u
 
     //NEW WAY =====
 
+    bit_buffer_append_byte(device->tx_buf, data[0]);
     bit_buffer_append_bytes(device->tx_buf, encrypted_rndB, sizeof(encrypted_rndB));
     bit_buffer_append_byte(device->tx_buf, MFDES_CLASS_RESPONSE);
     bit_buffer_append_byte(device->tx_buf, MFDES_CONTINUE_AUTHENTICATION);
-
+    iso14443_crc_append(Iso14443CrcTypeA, device->tx_buf);
     device_set_specific_context(device, MfDesListenerStatePhase1Sent);
 
+    FURI_LOG_D(TAG, "Listener: legacy authentication");
     return NfcCommandContinue;
 }
 
@@ -80,6 +87,7 @@ void mfdes_rotate(uint8_t* dest, const uint8_t* src, MfDesRotation rotation) {
 }
 
 NfcCommand mfdes_listener_continue_authentication(MfDesDevice* device, const uint8_t* data) {
+    bit_buffer_reset(device->tx_buf);
     uint8_t init_vector[8];
     uint8_t decrypted_output[16];
     uint8_t encrypted_rndA[8];
@@ -89,35 +97,7 @@ NfcCommand mfdes_listener_continue_authentication(MfDesDevice* device, const uin
         device->initial_vector,
         sizeof(init_vector)); // To prevent overwriting the app vector
 
-    // BitBuffer *bit_buffer_data = bit_buffer_alloc(sizeof(data)); //OLD API
-    // bit_buffer_append_bytes(bit_buffer_data, data, sizeof(data));
-
     uint8_t data_to_decrypt[16];
-    // for(uint8_t i = 0; i < 16; i++) {
-    //     data_to_decrypt[i] = bit_buffer_get_byte(bit_buffer_data, i + 6);
-    // }
-
-    // mbedtls_des3_context ctx;
-
-    // mbedtls_des3_init(&ctx);
-
-    // int result = mbedtls_des3_set3key_dec(&ctx, device->key);
-
-    // furi_check(result);
-
-    // result = mbedtls_des3_crypt_cbc(
-    //     &ctx,
-    //     MBEDTLS_DES_DECRYPT, // decrypt
-    //     sizeof(data_to_decrypt),
-    //     init_vector,
-    //     data_to_decrypt,    // in
-    //     decrypted_output);  // out
-
-    // mbedtls_des3_free(&ctx); // release memory
-
-    // furi_check(result);
-
-    // NEW WAY =====
 
     memcpy(data_to_decrypt, &data[5], sizeof(data_to_decrypt));
     uint8_t ck[16];
@@ -137,32 +117,9 @@ NfcCommand mfdes_listener_continue_authentication(MfDesDevice* device, const uin
     }
 
     uint8_t rotL_rndA[8];
-    // for(uint8_t i = 0; i < 8; i++) {
-    //     rotL_rndA[i] = rndA[(i + 1) % 8];
-    // }
     mfdes_rotate(rotL_rndA, rndA, ROT_LEFT);
 
     memset(init_vector, 0, sizeof(init_vector));
-
-    // mbedtls_des3_init(&ctx); //OLD API
-
-    // result = mbedtls_des3_set3key_enc(&ctx, device->key);
-
-    // furi_check(result);
-
-    // result = mbedtls_des3_crypt_cbc(
-    //     &ctx,
-    //     MBEDTLS_DES_ENCRYPT,
-    //     sizeof(rotL_rndA),
-    //     init_vector,
-    //     rotL_rndA, // in
-    //     encrypted_rndA); // out
-
-    // mbedtls_des3_free(&ctx); // release memory
-
-    // furi_check(result);
-
-    // NEW WAY =====
 
     uint8_t ck2[16];
     memcpy(ck2, device->key, sizeof(ck2));
@@ -172,25 +129,49 @@ NfcCommand mfdes_listener_continue_authentication(MfDesDevice* device, const uin
 
     // NEW WAY =====
 
+    bit_buffer_append_byte(device->tx_buf, data[0]);
     bit_buffer_append_bytes(device->tx_buf, encrypted_rndA, sizeof(encrypted_rndA));
     bit_buffer_append_byte(device->tx_buf, MFDES_CLASS_RESPONSE);
     bit_buffer_append_byte(device->tx_buf, MFDES_SUCCESS);
-
+    iso14443_crc_append(Iso14443CrcTypeA, device->tx_buf);
     device_set_specific_context(device, MfDesListenerStateAuthenticated);
 
+    FURI_LOG_D(TAG, "Listener: continue authentication");
     return NfcCommandContinue;
 }
 
 NfcCommand mfdes_listener_read_data(MfDesDevice* device, const uint8_t* data) {
     UNUSED(data);
+    bit_buffer_reset(device->tx_buf);
+    bit_buffer_append_byte(device->tx_buf, data[0]);
     bit_buffer_append_byte(device->tx_buf, MFDES_CLASS_RESPONSE);
     bit_buffer_append_byte(device->tx_buf, MFDES_PERMISSION_DENIED);
+    iso14443_crc_append(Iso14443CrcTypeA, device->tx_buf);
+    FURI_LOG_D(TAG, "Listener: read data");
+    return NfcCommandContinue;
+}
 
+NfcCommand mfdes_listener_negative_ack_b2(MfDesDevice* device, const uint8_t* data){
+    UNUSED(data);
+    bit_buffer_reset(device->tx_buf);
+    bit_buffer_append_byte(device->tx_buf, MFDES_POSITIVE_ACK_A3);
+    iso14443_crc_append(Iso14443CrcTypeA, device->tx_buf);
+    FURI_LOG_D(TAG, "Listener: negative ack b2");
+    return NfcCommandContinue;
+}
+
+NfcCommand mfdes_listener_negative_ack_ba(MfDesDevice* device, const uint8_t* data){
+    UNUSED(data);
+    bit_buffer_reset(device->tx_buf);
+    bit_buffer_append_byte(device->tx_buf, MFDES_POSITIVE_ACK_AB);
+    iso14443_crc_append(Iso14443CrcTypeA, device->tx_buf);
+    FURI_LOG_D(TAG, "Listener: negative ack ba");
     return NfcCommandContinue;
 }
 
 NfcCommand mfdes_listener_unknown_cmd(MfDesDevice* device, const uint8_t* data) {
-    FURI_LOG_D(TAG, "Unknown: %02X %02X", data[0], data[1]);
+    FURI_LOG_D(TAG, "Unknown: %02X %02X %02X", data[0], data[1], data[2]);
+    bit_buffer_reset(device->tx_buf);
     bit_buffer_append_byte(device->tx_buf, 0x00);
     bit_buffer_append_byte(device->tx_buf, 0x00);
     return NfcCommandContinue;
@@ -213,16 +194,43 @@ static const MfDesListenerCommandHandler mfdes_commands[] = {
     {
         .cmd = MFDES_READ_DATA,
         .callback = mfdes_listener_read_data,
-    }};
+    },
+    {
+        .cmd = MFDES_NEGATIVE_ACK_B2,
+        .callback = mfdes_listener_negative_ack_b2,
+    },
+    {
+        .cmd = MFDES_NEGATIVE_ACK_BA,
+        .callback = mfdes_listener_negative_ack_ba,
+    }
+
+};
 
 MfDesListenerCommandCallback mfdes_listerner_get_command_callback(const uint8_t* command) {
     furi_assert(command); //Pak se muze dat pryc TODO
-    uint8_t cmd_code = (command[0] == MFDES_CLASS_REQUEST) ? command[1] : command[0];
-
+    // uint8_t cmd_code = (command[1] == MFDES_CLASS_REQUEST) ? command[2] : command[1];
+    uint8_t cmd_code;
+    if (command[1] == MFDES_CLASS_REQUEST) {
+        cmd_code = command[2];
+        FURI_LOG_D(TAG, "Nastavuju cmd_code na command[2]");
+    }
+    else{
+        if(command[0] == MFDES_PCB_02 || command[0] == MFDES_PCB_03) {
+            cmd_code = command[1];
+            FURI_LOG_D(TAG, "Nastavuju cmd_code na command[1]");
+        }
+        else{
+            cmd_code = command[0];
+            FURI_LOG_D(TAG, "Nastavuju cmd_code na command[0]");
+        }
+    }
+    
     MfDesListenerCommandCallback callback = mfdes_listener_unknown_cmd;
     for(uint8_t i = 0; i < COUNT_OF(mfdes_commands); i++) {
+        FURI_LOG_D(TAG, "Porovnavam: %02X a %02X", cmd_code, mfdes_commands[i].cmd);
         if(cmd_code == mfdes_commands[i].cmd) {
             callback = mfdes_commands[i].callback;
+            break;
         }
     }
     return callback;
@@ -260,7 +268,7 @@ NfcCommand mfdes_listener_callback(NfcGenericEvent event, void* device) {
     if(Iso14443_4a_event->type == Iso14443_4aListenerEventTypeFieldOff) {
         FURI_LOG_D(TAG, "FieldOff");
         if(context->listener_state == MfDesListenerStateAuthenticated) {
-            mfdes_on_done(instance);
+            // mfdes_on_done(instance); //TODO - testovne ted dano pryc
         } else if(
             context->listener_state !=
             MfDesListenerStateIdle) { //Pokud cokoliv jineho nez idle a authenticated tak je to error

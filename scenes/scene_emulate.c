@@ -46,7 +46,7 @@ void desfire_app_scene_emulate_on_enter(void* context) {
     mfdes_device_set_event_callback(instance->device, mfdes_nfc_emulate_callback, instance);
     mfdes_load_card_info(instance->device, instance->selected_card_path);
     mfdes_load_key_and_iv(instance->device, instance->key, instance->initial_vector);
-    mfdes_init_nfc_device(instance->device);
+    mfdes_init_nfc_device(instance->device, instance->selected_card_path);
     NfcDevice* nfc_device = mfdes_get_nfc_device(instance->device);
     NfcProtocol protocol = nfc_device_get_protocol(nfc_device);
     const NfcDeviceData* data = nfc_device_get_data(nfc_device, protocol);
