@@ -8,13 +8,8 @@ bool mfdes_load_card_info(MfDesDevice* device, FuriString* path) {
     furi_check(path);
 
     bool result = false;
-    Storage* storage = furi_record_open(
-        RECORD_STORAGE); //TODO nenechavat tady napevno, ale nekde to hezky zadefinovat
+    Storage* storage = furi_record_open(RECORD_STORAGE);
     FlipperFormat* file = flipper_format_file_alloc(storage);
-
-    // char uid[] = furi_string_get_cstr(instance->uid);
-    // char sak[] = furi_string_get_cstr(instance->sak);
-    // char atqa[] = furi_string_get_cstr(instance->atqa);
 
     do {
         FURI_LOG_D(TAG, "Opening file: %s", furi_string_get_cstr(path));
@@ -24,6 +19,7 @@ bool mfdes_load_card_info(MfDesDevice* device, FuriString* path) {
             break;
         }
 
+        // TODO mela by tu byt kontrola na to jestli klic existuje
         if(!flipper_format_read_string(file, "UID", device->uid)) {
             FURI_LOG_E(TAG, "Failed to read UID");
             break;
@@ -52,14 +48,8 @@ bool mfdes_load_card_info(MfDesDevice* device, FuriString* path) {
 }
 
 void mfdes_load_key_and_iv(MfDesDevice* device, const uint8_t* key, const uint8_t* iv) {
-    FURI_LOG_D(TAG, "NFCDevice 1");
     device->initial_vector = iv;
-    FURI_LOG_D(TAG, "iv pointer: %p", (void*)device->initial_vector);
-    FURI_LOG_D(TAG, "NFCDevice 2");
     device->key = key;
-    FURI_LOG_D(TAG, "key pointer: %p", (void*)device->key);
-    FURI_LOG_D(TAG, "NFCDevice 3");
-    FURI_LOG_D(TAG, "NFCDevice exiting function");
     return;
 }
 
@@ -84,7 +74,7 @@ static size_t parse_hex_bytes(const char* s, uint8_t* out, size_t max_out) {
     return n;
 }
 
-static NfcDevice* mfdes_alloc_nfc_device(MfDesDevice* device) {
+static NfcDevice* mfdes_alloc_nfc_device(MfDesDevice* device, FuriString* path) {
     FURI_LOG_D(TAG, "Building NFC device");
 
     Iso14443_4aData* iso14443_4a_edit_data = iso14443_4a_alloc();
@@ -108,6 +98,26 @@ static NfcDevice* mfdes_alloc_nfc_device(MfDesDevice* device) {
     sak = sak_arr[0];
     FURI_LOG_D(TAG, "SAK: %02X", sak);
     iso14443_3a_set_sak(iso14443_3a_data, sak);
+
+    //------------ ats ----------
+
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    FlipperFormat* file = flipper_format_file_alloc(storage);
+    if(!flipper_format_file_open_existing(file, furi_string_get_cstr(path))) {
+            FURI_LOG_E(TAG, "Failed to open file");
+        }
+
+    uint32_t temp = 0;
+    (void)flipper_format_read_uint32(file, "Version", &temp, 1);
+
+    if(iso14443_4a_load(iso14443_4a_edit_data, file, temp)){
+        FURI_LOG_D(TAG, "Nacetl jsem ats");
+    }
+
+    flipper_format_free(file);
+    furi_record_close(RECORD_STORAGE);
+
+    //-------------- end of ats -----------
 
     NfcDevice* nfc_device = nfc_device_alloc();
 
@@ -137,8 +147,8 @@ MfDesDevice* mfdes_device_alloc() {
     return device;
 }
 
-void mfdes_init_nfc_device(MfDesDevice* device) {
-    device->nfc_device = mfdes_alloc_nfc_device(device);
+void mfdes_init_nfc_device(MfDesDevice* device, FuriString* path) {
+    device->nfc_device = mfdes_alloc_nfc_device(device, path);
 }
 
 void mfdes_set_device_app_context(MfDesDevice* device, MfDesAppForDeviceContext context) {

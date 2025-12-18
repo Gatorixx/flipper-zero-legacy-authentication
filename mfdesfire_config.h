@@ -21,6 +21,14 @@
 #define MFDES_CLASS_REQUEST           0x90
 #define MFDES_CLASS_RESPONSE          0x91
 #define MFDES_SUCCESS                 0x00
+#define MFDES_NEGATIVE_ACK_B2         0xB2
+#define MFDES_POSITIVE_ACK_A3         0xA3
+#define MFDES_NEGATIVE_ACK_BA         0xBA
+#define MFDES_POSITIVE_ACK_AB         0xAB
+#define MFDES_PCB_02                  0x02
+#define MFDES_PCB_03                  0x03
+#define MFDES_neco_neco 0xC2
+
 
 typedef enum {
     MfDesListenerStateIdle,
@@ -40,9 +48,9 @@ typedef struct {
 
 #define mfdes_on_done(instance) mfdes_pre_callback(instance, MfDesAuthenticationFinish)
 
-#define mfdes_on_target_lost(instance) mfdes_pre_callback(instance, MfDesTargetLost)
+// #define mfdes_on_target_lost(instance) mfdes_pre_callback(instance, MfDesTargetLost)
 
-#define mfdes_on_target_detected(instance) mfdes_pre_callback(instance, MfDesTargetDetected)
+// #define mfdes_on_target_detected(instance) mfdes_pre_callback(instance, MfDesTargetDetected)
 
 #define mfdes_on_error(instance) mfdes_pre_callback(instance, MfDesAuthenticationError)
 

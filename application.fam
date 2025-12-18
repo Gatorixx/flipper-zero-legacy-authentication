@@ -3,6 +3,7 @@ App(
     name="MFDesfire Auth",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="mfdesfire_auth_main",
+    fap_libs=["mbedtls"],
     requires=["gui", "nfc"],
     stack_size=5 * 1024,
     fap_icon="mfdesfire_auth_icon.png",
